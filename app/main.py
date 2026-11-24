@@ -2,7 +2,7 @@ from pydantic import BaseModel, Field
 import os
 import requests
 from typing import Literal
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Response
 
 app = FastAPI()
 base = os.environ["DOCKER_API_URL"]
@@ -120,3 +120,21 @@ def stop_container(container_id: str):
 @app.post("/containers/{container_id}/start")
 def start_container(container_id: str):
     return _action_conteneur(container_id, "start")
+
+
+@app.delete("/containers/{container_id}", status_code=204)
+def delete_container(container_id: str):
+    get_container(container_id)
+
+    response = requests.delete(
+        f"{base}/containers/{container_id}",
+        params={"force": "true"},
+    )
+    if response.status_code == 404:
+        raise HTTPException(status_code=404, detail="Conteneur introuvable")
+    if response.status_code != 204:
+        raise HTTPException(
+            status_code=502, detail="Docker n'a pas pu supprimer le conteneur"
+        )
+
+    return Response(status_code=204)
