@@ -1,5 +1,7 @@
+from pydantic import BaseModel, Field
 import os
 import requests
+from typing import Literal
 from fastapi import FastAPI, HTTPException
 
 app = FastAPI()
@@ -49,3 +51,42 @@ def get_container(container_id: str):
         }
     else:
         raise HTTPException(status_code=404, detail="Container not managed by adminapi")
+
+
+class ConteneurACreer(BaseModel):
+    name: str = Field(
+        pattern=r"^[a-z][a-z0-9-]{1,30}$",
+    )
+    image: Literal["nginx:alpine", "httpd:alpine", "redis:alpine"] = Field()
+
+
+@app.post("/containers", status_code=201)
+def create_container(conteneur: ConteneurACreer):
+    payload = {
+        "Image": conteneur.image,
+        "Labels": {"adminapi.managed": "true"},
+    }
+
+    response = requests.post(
+        f"{base}/containers/create",
+        params={"name": conteneur.name},
+        json=payload,
+    )
+    if response.status_code == 409:
+        raise HTTPException(
+            status_code=409, detail="Ce nom de conteneur est déjà utilisé"
+        )
+    if response.status_code != 201:
+        raise HTTPException(
+            status_code=502, detail="Docker n'a pas pu créer le conteneur"
+        )
+
+    container_id = response.json()["Id"]
+
+    start = requests.post(f"{base}/containers/{container_id}/start")
+    if start.status_code != 204:
+        raise HTTPException(
+            status_code=502, detail="Docker n'a pas pu démarrer le conteneur"
+        )
+
+    return get_container(container_id)
