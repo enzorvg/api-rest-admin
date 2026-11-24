@@ -4,10 +4,17 @@ import json
 from datetime import datetime
 
 base = os.environ.get("DOCKER_API_URL", "http://127.0.0.1:2375")
-
+netbox = os.environ.get("NETBOX_URL", "http://127.0.0.1:8080")
+jeton = os.environ["NETBOX_TOKEN"]
 session = requests.Session()
 
 reponses = session.get(f"{base}/containers/json?all=true", timeout=5)
+
+reponse = session.get(
+    f"{netbox}/api/status/", headers={"Authorization": f"Bearer {jeton}"}, timeout=5
+)
+version = reponse.json().get("netbox-version", "unknown")
+print(f"NetBox version: {version}")
 conteneurs = reponses.json()
 releve = []
 for conteneur in conteneurs:
@@ -43,7 +50,11 @@ for conteneur in conteneurs:
 
 with open("inventaire.json", "w") as f:
     json.dump(
-        {"date": datetime.now().isoformat(), "conteneurs": releve},
+        {
+            "date": datetime.now().isoformat(),
+            "conteneurs": releve,
+            "version_netbox": version,
+        },
         f,
         indent=4,
     )
