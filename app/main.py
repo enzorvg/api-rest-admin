@@ -90,3 +90,33 @@ def create_container(conteneur: ConteneurACreer):
         )
 
     return get_container(container_id)
+
+
+def _action_conteneur(container_id: str, action: str, params: dict | None = None):
+    get_container(container_id)
+
+    response = requests.post(
+        f"{base}/containers/{container_id}/{action}", params=params
+    )
+
+    if response.status_code == 304:
+        etat = "arrêté" if action == "stop" else "démarré"
+        raise HTTPException(status_code=409, detail=f"Le conteneur est déjà {etat}")
+    if response.status_code == 404:
+        raise HTTPException(status_code=404, detail="Conteneur introuvable")
+    if response.status_code != 204:
+        raise HTTPException(
+            status_code=502, detail=f"Docker n'a pas pu faire « {action} »"
+        )
+
+    return get_container(container_id)
+
+
+@app.post("/containers/{container_id}/stop")
+def stop_container(container_id: str):
+    return _action_conteneur(container_id, "stop", params={"t": 2})
+
+
+@app.post("/containers/{container_id}/start")
+def start_container(container_id: str):
+    return _action_conteneur(container_id, "start")
