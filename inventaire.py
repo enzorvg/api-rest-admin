@@ -16,7 +16,17 @@ reponse = session.get(
 version = reponse.json().get("netbox-version", "unknown")
 print(f"NetBox version: {version}")
 conteneurs = reponses.json()
+url = f"{netbox}/api/core/object-types/?limit=50"
+total = 0
 releve = []
+
+while url is not None:
+    page = session.get(
+        url, headers={"Authorization": f"Bearer {jeton}"}, timeout=5
+    ).json()
+    total += len(page["results"])
+    url = page["next"]
+print(f"Total object types in NetBox: {total} (NetBox annonce {page['count']})")
 for conteneur in conteneurs:
     infos = {
         "id": conteneur["Id"],
@@ -54,6 +64,7 @@ with open("inventaire.json", "w") as f:
             "date": datetime.now().isoformat(),
             "conteneurs": releve,
             "version_netbox": version,
+            "nb_types_objets": total,
         },
         f,
         indent=4,
