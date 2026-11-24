@@ -20,5 +20,12 @@ def get_containers():
     for conteneur in conteneurs:
         labels = conteneur["Labels"]
         if labels.get("adminapi.managed") == "true":
-            geres.append(conteneur)
+            geres.append(
+                {
+                    "id": conteneur["Id"],
+                    "name": conteneur["Names"][0].lstrip("/"),
+                    "image": conteneur["Image"],
+                    "state": conteneur["State"],
+                }
+            )
     return geres
